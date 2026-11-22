@@ -6,6 +6,7 @@
 #include <string>
 #include <unistd.h>
 #include <vector>
+#include <cstdlib>
 
 #include "logging.h"
 #include "chat.h"
@@ -139,8 +140,31 @@ Java_com_example_minicpm_1v_1demo_LlamaEngine_init(JNIEnv *env, jobject /*unused
 }
 
 extern "C"
+JNIEXPORT void JNICALL
+Java_com_example_minicpm_1v_1demo_LlamaEngine_setMoeTuningNative(JNIEnv *, jobject,
+                                                                jboolean prefetch, jint depth,
+                                                                jint decode_window) {
+    // Must be set before llama_model_load_from_file: the loader reads these when it
+    // sizes the expert slot tensors.
+    if (prefetch) {
+        setenv("LLAMA_MOE_LOOKAHEAD_PREFETCH", "1", 1);
+        setenv("LLAMA_MOE_LOOKAHEAD_PREFETCH_DEPTH", std::to_string((int) depth).c_str(), 1);
+    } else {
+        unsetenv("LLAMA_MOE_LOOKAHEAD_PREFETCH");
+        unsetenv("LLAMA_MOE_LOOKAHEAD_PREFETCH_DEPTH");
+    }
+    if (decode_window > 0) {
+        setenv("LLAMA_MOE_DECODE_WINDOW", std::to_string((int) decode_window).c_str(), 1);
+    } else {
+        unsetenv("LLAMA_MOE_DECODE_WINDOW");
+    }
+    LOGi("%s: prefetch=%d depth=%d decode_window=%d", __func__,
+         (int) prefetch, (int) depth, (int) decode_window);
+}
+
+extern "C"
 JNIEXPORT jint JNICALL
-Java_com_example_minicpm_1v_1demo_LlamaEngine_load(JNIEnv *env, jobject, jstring jmodel_path) {
+Java_com_example_minicpm_1v_1demo_LlamaEngine_load(JNIEnv *env, jobject, jstring jmodel_path, jint jmoe_slot_bank) {
     llama_model_params model_params = llama_model_default_params();
     // Language model stays on CPU. main_gpu < 0 with split NONE drops the GPU
     // from this model's device list, so decode is not split across Vulkan.
@@ -148,7 +172,16 @@ Java_com_example_minicpm_1v_1demo_LlamaEngine_load(JNIEnv *env, jobject, jstring
     model_params.n_gpu_layers = 0;
     model_params.split_mode = LLAMA_SPLIT_MODE_NONE;
     model_params.main_gpu = -1;
-    LOGi("%s: n_gpu_layers=0 split=none main_gpu=-1", __func__);
+    // LES: stream routed experts into `moeSlotBank` slots instead of loading them whole.
+    model_params.moe_slot_bank = (int32_t) jmoe_slot_bank;
+    // Repacking would duplicate the weights into a second full-size buffer, which a
+    // phone cannot hold. `common/` applies the same rule for CLI runs; this path
+    // builds llama_model_params by hand.
+    if (model_params.moe_slot_bank > 0) {
+        model_params.use_extra_bufts = false;
+    }
+    LOGi("%s: n_gpu_layers=0 split=none main_gpu=-1 moe_slot_bank=%d use_extra_bufts=%d",
+         __func__, (int) model_params.moe_slot_bank, (int) model_params.use_extra_bufts);
 
     const auto *model_path = env->GetStringUTFChars(jmodel_path, 0);
     LOGi("%s: Loading model from: \n%s\n", __func__, model_path);

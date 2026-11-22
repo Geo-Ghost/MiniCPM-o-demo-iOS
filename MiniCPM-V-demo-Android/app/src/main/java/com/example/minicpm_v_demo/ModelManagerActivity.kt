@@ -132,7 +132,7 @@ class ModelManagerActivity : AppCompatActivity() {
                 engine.unloadModel()
                 val mmprojPath = LlamaEngine.mmprojPath(applicationContext)
                 val mmprojArg = mmprojPath?.let { if (File(it).exists()) it else null }
-                engine.loadModel(modelPath, mmprojArg)
+                engine.loadModel(modelPath, mmprojArg, moeSlotBank = model.moeSlotBank)
                 LlamaEngine.markModelSwitched(applicationContext)
                 withContext(Dispatchers.Main) {
                     updateLoadButtonState()
@@ -339,7 +339,7 @@ class ModelManagerActivity : AppCompatActivity() {
                 val mmprojArg = mmprojPath?.let { path ->
                     if (File(path).exists()) path else null
                 }
-                engine.loadModel(modelPath, mmprojArg)
+                engine.loadModel(modelPath, mmprojArg, moeSlotBank = model.moeSlotBank)
                 // No default system prompt: aligned with iOS opt-r1. See
                 // MainActivity.clearChat() for the rationale.
 

@@ -56,11 +56,24 @@ if(NOT DEFINED LLAMA_INSTALL_VERSION)
     set(LLAMA_INSTALL_VERSION "0.0.0")
 endif()
 
+if(EXISTS ${CMAKE_CURRENT_LIST_DIR}/qnn-include/QNN/QnnInterface.h)
+    set(HAVE_QNN_SDK ON)
+    message(STATUS "QAIRT headers found; building the Hexagon NPU vision tower")
+else()
+    set(HAVE_QNN_SDK OFF)
+    message(STATUS "QAIRT headers absent; building without the Hexagon NPU vision tower")
+endif()
+
 add_library(${CMAKE_PROJECT_NAME} SHARED
         llama_jni.cpp
         omni_jni.cpp
-        qnn_vit.cpp
         qnn_vit_jni.cpp)
+
+if(HAVE_QNN_SDK)
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE qnn_vit.cpp)
+else()
+    target_sources(${CMAKE_PROJECT_NAME} PRIVATE qnn_vit_stub.cpp)
+endif()
 
 target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
         GGML_SYSTEM_ARCH=${GGML_SYSTEM_ARCH}
@@ -79,14 +92,15 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
         ${LLAMA_SRC}/tools/omni/voxcpm2
         # llama-common/peg-parser pulls in <nlohmann/json_fwd.hpp> via chat.h.
         # The vendored nlohmann headers live under llama.cpp-omni/vendor.
-        ${LLAMA_SRC}/vendor
-        # Qualcomm QNN headers, copied from the QAIRT 2.51.200 SDK. They are
-        # marked "Confidential and Proprietary" and stay out of git (see
-        # .gitignore), so this directory only exists on dev machines.
-        # Both the parent and QNN/ are on the path: QnnSystemInterface.h pulls
-        # in "System/QnnSystemCommon.h" relative to the QNN/ directory.
-        ${CMAKE_CURRENT_LIST_DIR}/qnn-include
-        ${CMAKE_CURRENT_LIST_DIR}/qnn-include/QNN)
+        ${LLAMA_SRC}/vendor)
+
+if(HAVE_QNN_SDK)
+    # Both the parent and QNN/ are on the path: QnnSystemInterface.h pulls in
+    # "System/QnnSystemCommon.h" relative to the QNN/ directory.
+    target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
+            ${CMAKE_CURRENT_LIST_DIR}/qnn-include
+            ${CMAKE_CURRENT_LIST_DIR}/qnn-include/QNN)
+endif()
 
 target_link_libraries(${CMAKE_PROJECT_NAME}
         llama

@@ -64,6 +64,9 @@ class LlamaEngine private constructor(
         // chats stable.
         const val DEFAULT_PREDICT_LENGTH = 1024
 
+        /** lookahead prefetch depth; the loader reserves 2*depth slots for it. */
+        const val MOE_PREFETCH_DEPTH = 8
+
         const val MODEL_SUBDIR = "models"
 
         private const val PREFS_NAME = "model_prefs"
@@ -71,6 +74,8 @@ class LlamaEngine private constructor(
         private const val KEY_IMAGE_MAX_SLICE = "image_max_slice_nums"
         private const val KEY_MODEL_SWITCHED = "model_switched"
         private const val KEY_ENABLE_THINKING = "enable_thinking"
+        private const val KEY_MOE_PREFETCH = "moe_prefetch"
+        private const val KEY_MOE_DECODE_WINDOW = "moe_decode_window"
 
         // MiniCPM-V's hard upper bound on slice count.  Values higher than 9
         // get clamped by clip.cpp::get_best_grid anyway; we cap on the UI
@@ -129,6 +134,22 @@ class LlamaEngine private constructor(
 
         fun getEnableThinking(context: Context): Boolean =
             prefs(context).getBoolean(KEY_ENABLE_THINKING, false)
+
+        /** Lookahead expert prefetch: overlap the next layer's reads with this layer's compute. */
+        fun getMoePrefetch(context: Context): Boolean =
+            prefs(context).getBoolean(KEY_MOE_PREFETCH, false)
+
+        fun setMoePrefetchPref(context: Context, enable: Boolean) {
+            prefs(context).edit().putBoolean(KEY_MOE_PREFETCH, enable).apply()
+        }
+
+        /** Resident experts per MoE layer during decode; 0 keeps the window off. */
+        fun getMoeDecodeWindow(context: Context): Int =
+            prefs(context).getInt(KEY_MOE_DECODE_WINDOW, 0)
+
+        fun setMoeDecodeWindowPref(context: Context, n: Int) {
+            prefs(context).edit().putInt(KEY_MOE_DECODE_WINDOW, n.coerceAtLeast(0)).apply()
+        }
 
         fun setEnableThinkingPref(context: Context, enable: Boolean) {
             prefs(context).edit().putBoolean(KEY_ENABLE_THINKING, enable).apply()
@@ -999,7 +1020,8 @@ class LlamaEngine private constructor(
     private var _readyForSystemPrompt = false
 
     private external fun init(nativeLibDir: String)
-    private external fun load(modelPath: String): Int
+    private external fun setMoeTuningNative(prefetch: Boolean, depth: Int, decodeWindow: Int)
+    private external fun load(modelPath: String, moeSlotBank: Int): Int
     // image_max_slice_nums: 1..9 (or -1 for model default).  See JNI for
     // the semantics; the upper layer should pass MIN_IMAGE_SLICE..MAX_IMAGE_SLICE.
     private external fun loadMmproj(mmprojPath: String, imageMaxSliceNums: Int): Int
@@ -1074,6 +1096,7 @@ class LlamaEngine private constructor(
         topK: Int = 0,
         topP: Float = 1f,
         nUbatch: Int = 0,
+        moeSlotBank: Int = 0,
     ) =
         withContext(llamaDispatcher) {
             check(_state.value is LlamaState.Initialized) {
@@ -1091,7 +1114,15 @@ class LlamaEngine private constructor(
                 _readyForSystemPrompt = false
                 _mmprojLoaded = false
                 _state.value = LlamaState.LoadingModel
-                load(pathToModel).let {
+                // Only meaningful for a LES model; the loader ignores these otherwise.
+                if (moeSlotBank > 0) {
+                    setMoeTuningNative(
+                        getMoePrefetch(context),
+                        MOE_PREFETCH_DEPTH,
+                        getMoeDecodeWindow(context),
+                    )
+                }
+                load(pathToModel, moeSlotBank).let {
                     if (it != 0) throw RuntimeException("Failed to load model (code: $it)")
                 }
 

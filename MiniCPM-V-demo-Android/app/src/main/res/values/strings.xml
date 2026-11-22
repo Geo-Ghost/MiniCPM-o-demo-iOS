@@ -108,6 +108,7 @@
     <string name="model_desc_v46">新一代多模态模型，支持图文理解 (1.2B)</string>
     <string name="model_desc_minicpm5">轻量级纯文本模型 (1B)</string>
     <string name="model_desc_minicpm5_2b">纯文本模型 (2B)</string>
+    <string name="model_desc_minicpm5_15b">MoE 纯文本模型 (15B-A2.5B, Q4_K_M)</string>
     <string name="model_desc_voxcpm2">多语言语音合成模型, 支持音色设计与声音克隆 (2B)</string>
 
     <!-- VideoFrameExtractor -->

@@ -62,6 +62,12 @@ data class ModelInfo(
     val mmprojMd5: String? = null,
     val acousticMd5: String? = null,
     val layoutMd5: String? = null,
+    /**
+     * LES slot bank: how many routed experts stay resident per forward pass.
+     * Non-zero requires a gguf that declares `les.moe.layout`, and disables weight
+     * repacking (see [LlamaEngine.loadModel]).
+     */
+    val moeSlotBank: Int = 0,
 ) {
     /** True for text-only models that have no vision projector. */
     val isTextOnly: Boolean
@@ -179,6 +185,21 @@ data class ModelInfo(
                 ggufFileName = "MiniCPM5-2B-Q4_K_M.gguf",
                 hfRepo = "openbmb/MiniCPM5-2B-GGUF",
                 msRepo = "OpenBMB/MiniCPM5-2B-GGUF"
+            ),
+            // MiniCPM5-15B-A2.5B: text-only MoE, 160 experts top-16 across 27 routed
+            // layers. The dense gguf is 8.5 GiB so a phone must use the LES build:
+            // experts are streamed from the packed tensor into `moeSlotBank` slots.
+            // Resident set is ~0.84 GiB of non-expert tensors plus the bank. The
+            // loader caps the bank at 32 slots per routed layer (864 here) and needs
+            // at least expert_used_count (16); one expert is ~1.95 MiB.
+            // The upstream GGUF repo is not published yet, so `hfRepo` / `msRepo`
+            // and `ggufMd5` stay null and the gguf is side-loaded for now.
+            ModelInfo(
+                id = "minicpm5-15b-a2_5b-les",
+                displayName = "MiniCPM5-15B-A2.5B (Q4_K_M)",
+                descriptionResName = "model_desc_minicpm5_15b",
+                ggufFileName = "MiniCPM5-15B-A2.5B-Q4_K_M-LES-fixed.gguf",
+                moeSlotBank = 512,
             ),
             // VoxCPM2 — text-to-speech model, ~2B params, 48kHz output.
             // Two GGUF files: a BaseLM (the MiniCPM-4 based language model)

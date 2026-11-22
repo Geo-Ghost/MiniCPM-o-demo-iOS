@@ -406,7 +406,7 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val mmprojArg = if (mmprojFile != null && mmprojFile.exists()) mmprojFile.absolutePath else null
-                engine.loadModel(ggufFile.absolutePath, mmprojArg)
+                engine.loadModel(ggufFile.absolutePath, mmprojArg, moeSlotBank = model.moeSlotBank)
                 loadedModelId = model.id
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading model", e)
