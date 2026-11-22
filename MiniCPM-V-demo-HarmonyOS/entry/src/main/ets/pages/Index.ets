@@ -226,7 +226,7 @@ struct Index {
     }
     try {
       const mm = (mmprojPath && fs.accessSync(mmprojPath)) ? mmprojPath : null;
-      await this.engine.loadModel(modelPath, mm);
+      await this.engine.loadModel(modelPath, mm, selectedModel.moeSlotBank);
       // No default system prompt: aligned with iOS opt-r1 (see LlamaEngine.ets).
     } catch (e) {
       hilog.error(DOMAIN, TAG, 'loadDefaultModel failed: %{public}s', `${e}`);

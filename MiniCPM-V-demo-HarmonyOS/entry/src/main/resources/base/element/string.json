@@ -109,6 +109,7 @@
     { "name": "model_desc_v46", "value": "新一代多模态模型，支持图文理解 (1.2B)" },
     { "name": "model_desc_minicpm5", "value": "轻量级纯文本模型 (1B)" },
     { "name": "model_desc_minicpm5_2b", "value": "纯文本模型 (2B)" },
+    { "name": "model_desc_minicpm5_15b", "value": "MoE 纯文本模型 (15B-A2.5B, Q4_K_M)" },
 
     { "name": "source_direct", "value": "直链" },
     { "name": "download_race_start", "value": "%s 多源 race 启动..." },

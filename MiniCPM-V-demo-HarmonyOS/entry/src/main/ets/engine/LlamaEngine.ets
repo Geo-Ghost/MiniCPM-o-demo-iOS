@@ -42,6 +42,8 @@ const PREFS_NAME = 'model_prefs';
 const KEY_SELECTED_MODEL = 'selected_model_id';
 const KEY_IMAGE_MAX_SLICE = 'image_max_slice_nums';
 const KEY_ENABLE_THINKING = 'enable_thinking';
+const KEY_MOE_PREFETCH = 'moe_prefetch';
+const KEY_MOE_DECODE_WINDOW = 'moe_decode_window';
 
 // Slice cap bounds.  9 = MiniCPM-V upper bound (clip.cpp::get_best_grid).
 // Out-of-the-box we default to the upper bound so first-launch image
@@ -61,6 +63,7 @@ export const MODEL_SUBDIR = 'models';
 // of single-turn answers; the n_ctx=4096 buffer plus shift_context() in
 // llama_napi.cpp still keeps multi-turn chats stable.
 export const DEFAULT_PREDICT_LENGTH = 512;
+export const MOE_PREFETCH_DEPTH = 8;
 // No default system prompt — aligned with iOS opt-r1 (see MBMtmd.mm). The
 // reference Python pipeline (`AutoModel.chat(...)` / `apply_chat_template`)
 // does not insert one either when the caller passes only a user message,
@@ -216,7 +219,8 @@ export class LlamaEngine {
     });
   }
 
-  loadModel(modelPath: string, mmprojPath: string | null = null): Promise<void> {
+  loadModel(modelPath: string, mmprojPath: string | null = null,
+            moeSlotBank: number = 0): Promise<void> {
     return this.serial(async () => {
       // Auto-unload if a model is already loaded (mirrors TtsEngine.loadModel).
       // This is more robust than requiring the caller to unloadModel() first,
@@ -241,7 +245,14 @@ export class LlamaEngine {
       this.readyForSystemPrompt = false;
       this.setState(LlamaState.LoadingModel);
 
-      const rc = nativeEngine.load(modelPath);
+      if (moeSlotBank > 0) {
+        nativeEngine.setMoeTuning(
+          await LlamaEngine.getMoePrefetch(this.context),
+          MOE_PREFETCH_DEPTH,
+          await LlamaEngine.getMoeDecodeWindow(this.context)
+        );
+      }
+      const rc = nativeEngine.load(modelPath, moeSlotBank);
       if (rc !== 0) {
         const err = new Error(`Failed to load model (code: ${rc})`);
         this.setState(LlamaState.error(err.message));
@@ -751,6 +762,40 @@ export class LlamaEngine {
     LlamaEngine.cachedEnableThinking = enable;
     const p = await LlamaEngine.prefs(context);
     await p.put(KEY_ENABLE_THINKING, enable);
+    await p.flush();
+  }
+
+  static async getMoePrefetch(context: common.Context): Promise<boolean> {
+    try {
+      const p = await LlamaEngine.prefs(context);
+      const v = await p.get(KEY_MOE_PREFETCH, false) as boolean;
+      return !!v;
+    } catch (e) {
+      hilog.warn(DOMAIN, TAG, 'getMoePrefetch failed: %{public}s', `${e}`);
+      return false;
+    }
+  }
+
+  static async setMoePrefetchPref(context: common.Context, enable: boolean): Promise<void> {
+    const p = await LlamaEngine.prefs(context);
+    await p.put(KEY_MOE_PREFETCH, enable);
+    await p.flush();
+  }
+
+  static async getMoeDecodeWindow(context: common.Context): Promise<number> {
+    try {
+      const p = await LlamaEngine.prefs(context);
+      const v = await p.get(KEY_MOE_DECODE_WINDOW, 0) as number;
+      return Math.max(0, v);
+    } catch (e) {
+      hilog.warn(DOMAIN, TAG, 'getMoeDecodeWindow failed: %{public}s', `${e}`);
+      return 0;
+    }
+  }
+
+  static async setMoeDecodeWindowPref(context: common.Context, n: number): Promise<void> {
+    const p = await LlamaEngine.prefs(context);
+    await p.put(KEY_MOE_DECODE_WINDOW, Math.max(0, n));
     await p.flush();
   }
 

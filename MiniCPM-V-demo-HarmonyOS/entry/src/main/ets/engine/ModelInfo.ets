@@ -58,6 +58,7 @@ export class ModelInfo {
   readonly mmprojMd5: string | null;
   readonly acousticMd5: string | null;
   readonly layout: LayoutModelFile | null;
+  readonly moeSlotBank: number;
 
   get isTextOnly(): boolean {
     return !this.mmprojFileName && !this.acousticFileName;
@@ -98,7 +99,8 @@ export class ModelInfo {
     ggufMd5: string | null = null,
     mmprojMd5: string | null = null,
     acousticMd5: string | null = null,
-    layout: LayoutModelFile | null = null
+    layout: LayoutModelFile | null = null,
+    moeSlotBank: number = 0
   ) {
     this.id = id;
     this.displayName = displayName;
@@ -120,6 +122,7 @@ export class ModelInfo {
     this.mmprojMd5 = mmprojMd5;
     this.acousticMd5 = acousticMd5;
     this.layout = layout;
+    this.moeSlotBank = moeSlotBank;
   }
 
   /** Path segment to request on HF/MS for the gguf, falling back to local name. */
@@ -214,6 +217,29 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     null,
     null,
     null
+  ),
+  new ModelInfo(
+    'minicpm5-15b-a2_5b-les',
+    'MiniCPM5-15B-A2.5B (Q4_K_M)',
+    'model_desc_minicpm5_15b',
+    'MiniCPM5-15B-A2.5B-Q4_K_M-LES.gguf',
+    '',
+    '',
+    null,
+    null,
+    'main',
+    'master',
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    512
   ),
   new ModelInfo(
     'voxcpm2',

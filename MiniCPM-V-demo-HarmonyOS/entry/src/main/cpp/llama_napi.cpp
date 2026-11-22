@@ -170,11 +170,22 @@ napi_value Init(napi_env env, napi_callback_info info) {
 }
 
 napi_value Load(napi_env env, napi_callback_info info) {
-    size_t argc = 1;
-    napi_value argv[1];
+    size_t argc = 2;
+    napi_value argv[2];
     napi_get_cb_info(env, info, &argc, argv, nullptr, nullptr);
 
+    int32_t moe_slot_bank = 0;
+    if (argc >= 2) {
+        napi_get_value_int32(env, argv[1], &moe_slot_bank);
+    }
+
     llama_model_params model_params = llama_model_default_params();
+    model_params.moe_slot_bank = moe_slot_bank;
+    if (model_params.moe_slot_bank > 0) {
+        model_params.use_extra_bufts = false;
+    }
+    LOGi("Load: moe_slot_bank=%{public}d use_extra_bufts=%{public}d",
+         (int) model_params.moe_slot_bank, (int) model_params.use_extra_bufts);
 
     std::string model_path = napi_get_string(env, argv[0]);
     LOGi("Load: Loading model from: \n%{public}s\n", model_path.c_str());
@@ -301,6 +312,42 @@ napi_value SetImageMaxSliceNums(napi_env env, napi_callback_info info) {
     } else {
         LOGi("SetImageMaxSliceNums: image_max_slice_nums set to %{public}d (stored)", n);
     }
+    return make_undefined(env);
+}
+
+napi_value SetMoeTuning(napi_env env, napi_callback_info info) {
+    size_t argc = 3;
+    napi_value argv[3];
+    napi_get_cb_info(env, info, &argc, argv, nullptr, nullptr);
+
+    bool prefetch = false;
+    int32_t depth = 0;
+    int32_t decode_window = 0;
+    if (argc >= 1) {
+        napi_get_value_bool(env, argv[0], &prefetch);
+    }
+    if (argc >= 2) {
+        napi_get_value_int32(env, argv[1], &depth);
+    }
+    if (argc >= 3) {
+        napi_get_value_int32(env, argv[2], &decode_window);
+    }
+
+    // Must precede load(): the loader sizes the expert slots from these.
+    if (prefetch) {
+        setenv("LLAMA_MOE_LOOKAHEAD_PREFETCH", "1", 1);
+        setenv("LLAMA_MOE_LOOKAHEAD_PREFETCH_DEPTH", std::to_string(depth).c_str(), 1);
+    } else {
+        unsetenv("LLAMA_MOE_LOOKAHEAD_PREFETCH");
+        unsetenv("LLAMA_MOE_LOOKAHEAD_PREFETCH_DEPTH");
+    }
+    if (decode_window > 0) {
+        setenv("LLAMA_MOE_DECODE_WINDOW", std::to_string(decode_window).c_str(), 1);
+    } else {
+        unsetenv("LLAMA_MOE_DECODE_WINDOW");
+    }
+    LOGi("SetMoeTuning: prefetch=%{public}d depth=%{public}d decode_window=%{public}d",
+         (int) prefetch, (int) depth, (int) decode_window);
     return make_undefined(env);
 }
 

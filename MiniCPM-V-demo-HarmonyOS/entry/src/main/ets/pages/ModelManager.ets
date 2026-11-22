@@ -180,7 +180,7 @@ struct ModelManager {
         // loadModel auto-unloads if a model is already loaded,
         // so we don't need to call unloadModel() explicitly.
         const mm = (mmprojPath && fs.accessSync(mmprojPath)) ? mmprojPath : null;
-        await this.engine!.loadModel(modelPath, mm);
+        await this.engine!.loadModel(modelPath, mm, selectedModel.moeSlotBank);
         this.loading = false;
         this.loadingLock = false;
         promptAction.showToast({ message: this.str('toast_model_loaded'), duration: 1500 });

@@ -7,7 +7,8 @@
 //   * LlamaEngine.ets    (caller)
 
 export const init: (nativeLibDir: string) => void;
-export const load: (modelPath: string) => number;
+export const load: (modelPath: string, moeSlotBank: number) => number;
+export const setMoeTuning: (prefetch: boolean, depth: number, decodeWindow: number) => void;
 // imageMaxSliceNums: 1..9 inclusive (or -1 for the model default).  See
 // llama_napi.cpp::LoadMmproj for semantics.  Persisted by the chat-page
 // slider; defaults to 9 (MiniCPM-V upper bound, best detail) on first
