@@ -198,7 +198,7 @@ data class ModelInfo(
                 id = "minicpm5-15b-a2_5b-les",
                 displayName = "MiniCPM5-15B-A2.5B (Q4_K_M)",
                 descriptionResName = "model_desc_minicpm5_15b",
-                ggufFileName = "MiniCPM5-15B-A2.5B-Q4_K_M-LES-fixed.gguf",
+                ggufFileName = "LCO-MiniCPM5-15B-A2.5B-Q4_K_M.gguf",
                 moeSlotBank = 512,
             ),
             // VoxCPM2 — text-to-speech model, ~2B params, 48kHz output.

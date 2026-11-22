@@ -222,7 +222,7 @@ export const AVAILABLE_MODELS: ModelInfo[] = [
     'minicpm5-15b-a2_5b-les',
     'MiniCPM5-15B-A2.5B (Q4_K_M)',
     'model_desc_minicpm5_15b',
-    'MiniCPM5-15B-A2.5B-Q4_K_M-LES.gguf',
+    'LCO-MiniCPM5-15B-A2.5B-Q4_K_M.gguf',
     '',
     '',
     null,
